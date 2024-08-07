@@ -1,0 +1,5 @@
+admin@example.com,,240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9,ADMIN,true
+nsabitre@gmail.com,430ccbd8-2ee6-4e0a-b941-c5da7316407e,9345a35a6fdf174dff7219282a3ae4879790dbb785c70f6fff91e32fafd66eab,PATIENT,true
+ghea@gmail.com,b2abe2a4-b336-4cec-b8a8-3d818895551f,,PATIENT,false
+mawen@gmail.com,1eae9cce-e21d-45e8-bd4b-75eaa1785d51,a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3,PATIENT,true
+nsyvestresor@gmail.com,ee2706c7-8ed1-43a7-ad3b-e14eb78d0396,,PATIENT,false
