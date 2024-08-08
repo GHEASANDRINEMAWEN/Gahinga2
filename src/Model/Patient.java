@@ -45,11 +45,11 @@ public class Patient extends User {
     public void setDateOfBirth(Date dateOfBirth) { this.dateOfBirth = dateOfBirth; }
     public String getUuid() { return uuid; }
     public void setUuid(String uuid) { this.uuid = uuid; }
-    public boolean isHivPositive() { return isHivPositive; }
+    public boolean getIsHivPositive() { return isHivPositive; }
     public void setHivPositive(boolean hivPositive) { isHivPositive = hivPositive; }
     public Date getDateOfInfection() { return dateOfInfection; }
     public void setDateOfInfection(Date dateOfInfection) { this.dateOfInfection = dateOfInfection; }
-    public boolean isOnARTDrugs() { return onARTDrugs; }
+    public boolean getIsOnARTDrugs() { return onARTDrugs; }
     public void setOnARTDrugs(boolean onARTDrugs) { this.onARTDrugs = onARTDrugs; }
     public Date getStartARTDate() { return startARTDate; }
     public void setStartARTDate(Date startARTDate) { this.startARTDate = startARTDate; }
@@ -84,7 +84,7 @@ public class Patient extends User {
     
         System.out.print("Is HIV Positive (true/false) or press Enter to keep current: ");
         String hivPositiveString = scanner.nextLine();
-        boolean isHivPositive = hivPositiveString.isEmpty() ? isHivPositive() : Boolean.parseBoolean(hivPositiveString);
+        boolean isHivPositive = hivPositiveString.isEmpty() ? getIsHivPositive() : Boolean.parseBoolean(hivPositiveString);
     
         System.out.print("Enter new date of infection (yyyy-MM-dd) or press Enter to keep current: ");
         String doiString = scanner.nextLine();
@@ -92,7 +92,7 @@ public class Patient extends User {
     
         System.out.print("On ART Drugs (true/false) or press Enter to keep current: ");
         String onARTDrugsString = scanner.nextLine();
-        boolean onARTDrugs = onARTDrugsString.isEmpty() ? isOnARTDrugs() : Boolean.parseBoolean(onARTDrugsString);
+        boolean onARTDrugs = onARTDrugsString.isEmpty() ? getIsOnARTDrugs() : Boolean.parseBoolean(onARTDrugsString);
     
         System.out.print("Enter new start ART date (yyyy-MM-dd) or press Enter to keep current: ");
         String artStartDateString = scanner.nextLine();
@@ -172,7 +172,7 @@ public class Patient extends User {
         try {
             String scriptPath = findScript("user-manager.sh");
             if (scriptPath != null) {
-                String response = executeScript(scriptPath, "complete-registration", uuid, getFirstName(), getLastName(), dateOfBirth.toString(), String.valueOf(isHivPositive), dateOfInfection != null ? dateOfInfection.toString() : "", String.valueOf(onARTDrugs), startARTDate != null ? startARTDate.toString() : "", country, getPassword());
+                String response = executeScript(scriptPath, "complete-registration", uuid, getFirstName(), getLastName(), new SimpleDateFormat("yyyy-MM-dd").format(dateOfBirth), String.valueOf(isHivPositive), dateOfInfection != null ? new SimpleDateFormat("yyyy-MM-dd").format(dateOfInfection) : "", String.valueOf(onARTDrugs), startARTDate != null ? new SimpleDateFormat("yyyy-MM-dd").format(startARTDate) : "", country, getPassword());
                 return response;
             } else {
                 return "Script not found.";
