@@ -58,6 +58,20 @@ public abstract class User {
         }
     }
 
+    public String logout() {
+        try {
+            String scriptPath = findScript("user-manager.sh");
+            if (scriptPath != null) {
+                return executeScript(scriptPath, "logout", email);
+            } else {
+                return "Script not found.";
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "Error during logout.";
+        }
+    }
+
     // Method to find the script path dynamically
     public String findScript(String scriptName) throws IOException {
         File currentDir = new File(".");

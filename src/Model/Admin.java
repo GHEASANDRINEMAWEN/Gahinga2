@@ -27,17 +27,25 @@ public class Admin extends User {
     }
 
     public void exportUserData() {
-        String csvFile = getFilePath("user_data.csv");
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(csvFile))) {
-            writer.write("UUID,Email,FirstName,LastName,DateOfBirth,IsHivPositive,DateOfInfection,OnARTDrugs,StartARTDate,Country,LifeExpectancy");
-            writer.newLine();
+        try {
+            String scriptPath = findScript("user-manager.sh");
+            if (scriptPath != null) {
+                String response = executeScript(scriptPath, "get-all-users");
+                String csvFile = getFilePath("user_data.csv");
+                BufferedWriter writer = new BufferedWriter(new FileWriter(csvFile));
+                writer.write("UUID,Email,FirstName,LastName,DateOfBirth,IsHivPositive,DateOfInfection,OnARTDrugs,StartARTDate,Country,LifeExpectancy");
+                writer.newLine();
 
-            // for (User user : users) {
-            //     writer.write(userToCsv(user));
-            //     writer.newLine();
-            // }
-
-            System.out.println("User data exported successfully to " + csvFile);
+                String[] users = response.split("\n");
+                for (String user : users) {
+                    writer.write(user);
+                    writer.newLine();
+                }
+                writer.close();
+                System.out.println("User data exported successfully to " + csvFile);
+            } else {
+                System.out.println("Script not found.");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

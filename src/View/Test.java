@@ -76,67 +76,179 @@ public class Test {
                 currentPatient = new Patient(storedUuid, "", "", email, "", null, false, null, false, null, "", null);
                 return true;
             } else {
-                System.out.println("Invalid email or password.");
-                pressEnterToContinue();
+                System.out.println(response);
                 return false;
             }
         } catch (IOException e) {
+            System.out.println("System error, please contact the administrator");
             return false;
         }
+    }
+    
+    private static boolean isValidName(String name) {
+        return name.matches("^[A-Za-z]+([\\s'-][A-Za-z]+)*$");
     }
 
     private static void registerPatient() {
         clearScreen();
-        System.out.println("Register as Patient");
-        System.out.print("First Name: ");
-        String firstName = scanner.nextLine();
-        System.out.print("Last Name: ");
-        String lastName = scanner.nextLine();
-        String password = readPassword("Password: ");
-    
-        System.out.print("Date of Birth (yyyy-MM-dd): ");
-        Date dateOfBirth = parseDate(scanner.nextLine());
-    
-        System.out.print("Is HIV Positive (true/false): ");
-        boolean isHivPositive = scanner.nextBoolean();
-        scanner.nextLine(); // consume newline
-    
-        Date dateOfInfection = null;
-        if (isHivPositive) {
-            System.out.print("Date of Infection (yyyy-MM-dd): ");
-            dateOfInfection = parseDate(scanner.nextLine());
-        }
-    
-        System.out.print("On ART Drugs (true/false): ");
-        boolean onARTDrugs = scanner.nextBoolean();
-        scanner.nextLine(); // consume newline
-    
-        Date startARTDate = null;
-        if (onARTDrugs) {
-            System.out.print("Start ART Date (yyyy-MM-dd): ");
-            startARTDate = parseDate(scanner.nextLine());
-        }
-    
-        System.out.print("Country: ");
-        String country = scanner.nextLine();
-    
-        System.out.print("Enter UUID Code: ");
-        String uuid_code = scanner.nextLine(); // Ensure this captures the correct input
-    
-        currentPatient = new Patient(uuid_code, firstName, lastName, null, password, dateOfBirth, isHivPositive,
-                dateOfInfection, onARTDrugs, startARTDate, country, null);
-    
-        String response = currentPatient.completeRegistration();
-    
-        System.out.println(response);
-        pressEnterToContinue();
-    }    
 
-    private static Date parseDate(String date) {
+        System.out.print("Enter UUID Code: ");
+        String uuid_code = scanner.nextLine().trim();
+        while (uuid_code.isEmpty()) {
+            System.out.print("UUID Code cannot be empty. Please enter again: ");
+            uuid_code = scanner.nextLine().trim();
+        }
+
+        // Validate the UUID and get the associated email
         try {
-            return new SimpleDateFormat("yyyy-MM-dd").parse(date);
+            String scriptPath = findScript("user-manager.sh");
+            if (scriptPath == null) {
+                System.out.println("Script not found.");
+                return;
+            }
+
+            String response = executeScript(scriptPath, "validate-uuid", uuid_code);
+            if (response.startsWith("Invalid") || response.isEmpty()) {
+                System.out.println(response);
+                pressEnterToContinue();
+                return;
+            }
+
+            String email = response.trim();
+            System.out.println("Complete registration for user with email: " + email);
+
+            System.out.print("First Name: ");
+            String firstName = scanner.nextLine().trim();
+            while (firstName.isEmpty() || !isValidName(firstName)) {
+                if(!isValidName(firstName)){
+                    System.out.println("Invalid input. Name should only contain letters. Please enter again: ");
+                }else{
+                    System.out.print("First Name cannot be empty. Please enter again: ");
+                }
+                firstName = scanner.nextLine().trim();
+            }
+
+            System.out.print("Last Name: ");
+            String lastName = scanner.nextLine().trim();
+            while (lastName.isEmpty() || !isValidName(lastName)) {
+                if(!isValidName(lastName)){
+                    System.out.println("Invalid input. Name should only contain letters. Please enter again: ");
+                }else{
+                    System.out.print("First Name cannot be empty. Please enter again: ");
+                }
+                lastName = scanner.nextLine().trim();
+            }
+        
+            String password = readPassword("Password: ");
+            while (password.isEmpty()) {
+                System.out.print("Password cannot be empty. Please enter again: ");
+                password = readPassword("Password: ");
+            }
+        
+            System.out.print("Date of Birth (yyyy-MM-dd): ");
+            Date dateOfBirth = parseDate(scanner.nextLine().trim());
+            while (dateOfBirth == null) {
+                System.out.print("Invalid date format. Please enter Date of Birth (yyyy-MM-dd): ");
+                dateOfBirth = parseDate(scanner.nextLine().trim());
+            }
+        
+            System.out.print("Is HIV Positive (true/false): ");
+            Boolean isHivPositive = parseBoolean(scanner.nextLine().trim());
+            while (isHivPositive == null) {
+                System.out.print("Invalid input. Please enter true or false for HIV Positive: ");
+                isHivPositive = parseBoolean(scanner.nextLine().trim());
+            }
+        
+            Date dateOfInfection = null;
+            if (isHivPositive) {
+                System.out.print("Date of Infection (yyyy-MM-dd): ");
+                dateOfInfection = parseDate(scanner.nextLine().trim());
+                while (dateOfInfection == null || dateOfInfection.before(dateOfBirth)) {
+                    if(dateOfInfection == null){
+                        System.out.print("Invalid date format. Please enter Date of Infection (yyyy-MM-dd): ");
+                        dateOfInfection = parseDate(scanner.nextLine().trim());
+                    }else{
+                        System.out.print("Invalid date. Date of infection should be after the date of birth: ");
+                        dateOfInfection = parseDate(scanner.nextLine().trim());
+                    }
+                }
+            }
+        
+            System.out.print("On ART Drugs (true/false): ");
+            Boolean onARTDrugs = parseBoolean(scanner.nextLine().trim());
+            while (onARTDrugs == null) {
+                System.out.print("Invalid input. Please enter true or false for On ART Drugs: ");
+                onARTDrugs = parseBoolean(scanner.nextLine().trim());
+            }
+        
+            Date startARTDate = null;
+            if (onARTDrugs) {
+                System.out.print("Start ART Date (yyyy-MM-dd): ");
+                startARTDate = parseDate(scanner.nextLine().trim());
+                while (startARTDate == null || startARTDate.before(dateOfInfection)) {
+                    if(startARTDate == null){
+                        System.out.print("Invalid date format. Please enter Start ART Date (yyyy-MM-dd): ");
+                        startARTDate = parseDate(scanner.nextLine().trim());
+                    }else{
+                        System.out.print("Invalid date. Start ART Date should be after the Date of infection: ");
+                        startARTDate = parseDate(scanner.nextLine().trim());
+                    }
+                }
+            }
+        
+            System.out.print("Country: ");
+            String country = scanner.nextLine().trim();
+            while (country.isEmpty() || getCountryLifeExpectancy(country).equals("Invalid country code")) {
+                if(country.isEmpty()){
+                    System.out.print("Country cannot be empty. Please enter again: ");
+                }else{
+                    System.out.print("Invalid country code. Please enter again using Alpha-3 code: ");
+                }
+                country = scanner.nextLine().trim();
+            }
+        
+            currentPatient = new Patient(uuid_code, firstName, lastName, null, password, dateOfBirth, isHivPositive,
+                    dateOfInfection, onARTDrugs, startARTDate, country, null);
+        
+            response = currentPatient.completeRegistration();
+            System.out.println(response);
+            pressEnterToContinue();
+        } catch (IOException e) {
+            System.out.println("System error, please contact the administrator");
+            pressEnterToContinue();
+        }
+    }
+    
+    private static String getCountryLifeExpectancy(String country){
+        try {
+            String scriptPath = findScript("user-manager.sh");
+            if (scriptPath != null) {
+                String response = executeScript(scriptPath, "get-life-expectancy", country);
+                return response;
+            } else {
+                return "Script not found.";
+            }
+        } catch (IOException e) {
+            return "System error";
+        }
+    }
+
+    private static Date parseDate(String dateStr) {
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            dateFormat.setLenient(false);
+            return dateFormat.parse(dateStr);
         } catch (ParseException e) {
-            System.out.println("Invalid date format. Please enter in yyyy-MM-dd format.");
+            return null;
+        }
+    }
+    
+    private static Boolean parseBoolean(String boolStr) {
+        if (boolStr.equalsIgnoreCase("true") || boolStr.equalsIgnoreCase("yes") || boolStr.equalsIgnoreCase("y")) {
+            return true;
+        } else if (boolStr.equalsIgnoreCase("false") || boolStr.equalsIgnoreCase("no") || boolStr.equalsIgnoreCase("n")) {
+            return false;
+        } else {
             return null;
         }
     }
@@ -158,12 +270,15 @@ public class Test {
             switch (choice) {
                 case 1:
                     currentAdmin.deleteUsers();
+                    pressEnterToContinue();
                     break;
                 case 2:
                     currentAdmin.exportUserData();
+                    pressEnterToContinue();
                     break;
                 case 3:
                     currentAdmin.aggregateUserData();
+                    pressEnterToContinue();
                     break;
                 case 4:
                     clearScreen();
@@ -172,8 +287,10 @@ public class Test {
                     break;
                 case 5:
                     currentAdmin.getAllUsers();
+                    pressEnterToContinue();
                     break;
                 case 6:
+                    currentAdmin.logout();
                     currentAdmin = null;
                     return;
                 default:
@@ -209,6 +326,7 @@ public class Test {
                     pressEnterToContinue();
                     break;
                 case 4:
+                    currentPatient.logout();
                     currentPatient = null;
                     return;
                 default:
