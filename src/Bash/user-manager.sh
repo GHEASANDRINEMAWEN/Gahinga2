@@ -271,16 +271,7 @@ view_profile() {
   while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate
   do
     if [[ "$stored_uuid" == "$uuid_code" ]]; then
-      echo "First Name: $firstname"
-      echo "Last Name: $lastname"
-      echo "Date of Birth: $dateOfBirth"
-      echo "Is HIV Positive: $isHivPositive"
-      echo "Date of Infection: $dateOfInfection"
-      echo "On ART Drugs: $onArtDrugs"
-      echo "Date of start ART: $startARTDate"
-      echo "Country: $country"
-      echo "Life Expectancy: $lifeExpectancy"
-      echo "Demise Date: $demiseDate"
+      echo "$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate"
       return 0
     fi
   done < "$PATIENTS_STORE"
@@ -290,10 +281,10 @@ view_profile() {
 }
 
 get_all_users() {
-  if [ "$1" != "ADMIN" ]; then
-      echo "Access denied"
-      exit 0
-  fi
+  # if [ "$1" != "ADMIN" ]; then
+  #     echo "Access denied"
+  #     exit 0
+  # fi
 
   users=()
 
@@ -394,11 +385,24 @@ modify_patient_profile() {
       new_firstName=${firstName:-$stored_firstName}
       new_lastName=${lastName:-$stored_lastName}
       new_dateOfBirth=${dateOfBirth:-$stored_dateOfBirth}
+
+      # Update HIV status
       new_hasHIV=${hasHIV:-$stored_hasHIV}
-      new_diagnosisDate=${diagnosisDate:-$stored_diagnosisDate}
-      new_onART=${onART:-$stored_onART}
-      new_artStartDate=${artStartDate:-$stored_artStartDate}
+
+      # Check if the user has updated their HIV status to negative
+      if [[ "$new_hasHIV" == "false" ]]; then
+          new_diagnosisDate="null"
+          new_onART="null"
+          new_artStartDate="null"
+      else
+          new_diagnosisDate=${diagnosisDate:-$stored_diagnosisDate}
+          new_onART=${onART:-$stored_onART}
+          new_artStartDate=${artStartDate:-$stored_artStartDate}
+      fi
+
+      # Update country information
       new_countryISO=${countryISO:-$stored_countryISO}
+
 
       # Calculate the new age and remaining lifespan if required
       current_age=$(calculate_age "$new_dateOfBirth")
@@ -463,7 +467,7 @@ case $1 in
     validate_uuid $2
     ;;
   "get-all-users")
-    get_all_users
+    get_all_users $2
     ;;
   "initiate-registration")
     if [ $# -ne 3 ]; then

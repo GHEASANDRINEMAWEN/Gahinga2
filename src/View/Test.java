@@ -16,19 +16,24 @@ public class Test {
     private static Admin currentAdmin = null;
     private static Patient currentPatient = null;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ParseException {
         while (true) {
             clearScreen();
-            System.out.println("Welcome to the Health Management System");
-            System.out.println("1. Log in");
-            System.out.println("2. Complete Registration");
-            System.out.println("3. Exit");
+            System.out.println("        ##############################################");
+            System.out.println("        #                                            #");
+            System.out.println("        #  Welcome to the Health Management System   #");
+            System.out.println("        #                                            #");
+            System.out.println("        ##############################################");
+            System.out.println("                        1. Log in");
+            System.out.println("                2. Complete Registration");
+            System.out.println("                        3. Exit");
+            System.out.println();
+            System.out.print("        Your choice: ");
 
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
+            String choice = scanner.nextLine();
 
             switch (choice) {
-                case 1:
+                case "1":
                     if (login()) {
                         if (currentAdmin != null) {
                             adminMenu();
@@ -37,30 +42,39 @@ public class Test {
                         }
                     }
                     break;
-                case 2:
+                case "2":
                     registerPatient();
                     break;
-                case 3:
-                    System.out.println("Exiting...");
+                case "3":
+                    System.out.println("        Exiting...");
                     System.exit(0);
                     break;
                 default:
-                    System.out.println("Invalid choice, please try again.");
+                    System.out.println();
+                    System.out.println("        Invalid choice, please try again.");
+                    pressEnterToContinue();
             }
         }
     }
 
     private static boolean login() {
         clearScreen();
-        System.out.println("Log in to the Health Management System");
-        System.out.print("Email: ");
+        System.out.println("        ##############################################");
+        System.out.println("        #                                            #");
+        System.out.println("        #   Log in to the Health Management System   #");
+        System.out.println("        #                                            #");
+        System.out.println("        ##############################################");
+        System.out.println();
+        System.out.print("        Email: ");
         String email = scanner.nextLine();
-        String password = readPassword("Password: ");
+        String password = readPassword("        Password: ");
 
         try {
             String scriptPath = findScript("user-manager.sh");
             if (scriptPath == null) {
-                System.out.println("Script not found.");
+                System.out.println();
+                System.out.println("        Script not found.");
+                pressEnterToContinue();
                 return false;
             }
             
@@ -73,14 +87,18 @@ public class Test {
             } else if (response.startsWith("PATIENT")) {
                 String[] parts = response.split(",");
                 String storedUuid = parts[1];
-                currentPatient = new Patient(storedUuid, "", "", email, "", null, false, null, false, null, "", null);
+                currentPatient = new Patient(storedUuid, "", "", email, "", null, "false", null, "false", null, "", null);
                 return true;
             } else {
-                System.out.println(response);
+                System.out.println();
+                System.out.println("        " + response);
+                pressEnterToContinue();
                 return false;
             }
         } catch (IOException e) {
-            System.out.println("System error, please contact the administrator");
+            System.out.println();
+            System.out.println("        System error, please contact the administrator");
+            pressEnterToContinue();
             return false;
         }
     }
@@ -89,13 +107,102 @@ public class Test {
         return name.matches("^[A-Za-z]+([\\s'-][A-Za-z]+)*$");
     }
 
+    private static void modifyProfile() throws ParseException {
+        // Display current profile information
+        currentPatient.viewProfile();
+    
+        // Prompt for new details
+        Scanner scanner = new Scanner(System.in);
+        String doiString = "";
+        String artStartDateString = "";
+        String onARTDrugsString = "";
+    
+        System.out.print("        Enter new first name (or press Enter to keep current): ");
+        String firstName = scanner.nextLine();
+        while (!firstName.isEmpty() && !isValidName(firstName)) {
+            System.out.println("        Invalid input. Name should only contain letters. Please enter again: ");
+            firstName = scanner.nextLine().trim();
+        }
+    
+        System.out.print("        Enter new last name (or press Enter to keep current): ");
+        String lastName = scanner.nextLine();
+        while (!lastName.isEmpty() && !isValidName(lastName)) {
+            System.out.println("        Invalid input. Name should only contain letters. Please enter again: ");
+            lastName = scanner.nextLine().trim();
+        }
+    
+        System.out.print("        Enter new date of birth (yyyy-MM-dd) or press Enter to keep current: ");
+        String dobString = scanner.nextLine();
+        while (!dobString.isEmpty() && parseDate(dobString) == null) {
+            System.out.print("        Invalid date format. Please enter Date of Birth (yyyy-MM-dd): ");
+            dobString = scanner.nextLine();
+        }
+    
+        System.out.print("        Is HIV Positive (true/false) or press Enter to keep current: ");
+        String hivPositiveString = scanner.nextLine();
+        while (!hivPositiveString.isEmpty() && parseBoolean(hivPositiveString) == null) {
+            System.out.print("        Invalid input. Please enter true or false for HIV Positive: ");
+            hivPositiveString = scanner.nextLine();
+        }
+    
+        Boolean enterDateOfInfection = ((!hivPositiveString.isEmpty() && hivPositiveString.equals("true")) || (hivPositiveString.isEmpty() && currentPatient.getIsHivPositive().equals("true")));
+        if(enterDateOfInfection){
+            System.out.print("        Enter new date of infection (yyyy-MM-dd) or press Enter to keep current: ");
+            doiString = scanner.nextLine();
+            while (!doiString.isEmpty() && (parseDate(doiString) == null || parseDate(doiString).before((!dobString.isEmpty()) ? parseDate(dobString) : currentPatient.getDateOfBirth()))) {
+                System.out.print("        Invalid date format. Please enter Date of Birth (yyyy-MM-dd): ");
+                doiString = scanner.nextLine();
+            }
+            System.out.print("        On ART Drugs (true/false) or press Enter to keep current: ");
+            onARTDrugsString = scanner.nextLine();
+            while (!onARTDrugsString.isEmpty() && parseBoolean(onARTDrugsString) == null) {
+                System.out.print("        Invalid input. Please enter true or false for HIV Positive: ");
+                onARTDrugsString = scanner.nextLine();
+            }
+        
+            Boolean enterArtStartDate = ((!onARTDrugsString.isEmpty() && onARTDrugsString.equals("true")) || (onARTDrugsString.isEmpty() && currentPatient.getIsOnARTDrugs().equals("true")));
+            if(enterArtStartDate){
+                System.out.print("        Enter new start ART date (yyyy-MM-dd) or press Enter to keep current: ");
+                artStartDateString = scanner.nextLine();
+                while (!artStartDateString.isEmpty() && (parseDate(artStartDateString) == null || parseDate(artStartDateString).before((!doiString.isEmpty()) ? parseDate(doiString) : currentPatient.getDateOfInfection()))) {
+                    System.out.print("        Invalid date format. Please enter Date of Birth (yyyy-MM-dd): ");
+                    artStartDateString = scanner.nextLine();
+                }
+            }
+        }
+        
+        System.out.print("        Enter new country or press Enter to keep current: ");
+        String country = scanner.nextLine();
+        while (!country.isEmpty() && getCountryLifeExpectancy(country).equals("Invalid country code")) {
+            System.out.print("        Invalid country code. Please enter again using Alpha-3 code: ");
+            country = scanner.nextLine().trim();
+        }
+    
+        // Print the new user information for debugging
+        System.out.println();
+        System.out.println("        New User Information:");
+        System.out.println("        =====================");
+        System.out.println();
+        System.out.println("        First Name: " + (!firstName.isEmpty() ? firstName : "Not changed"));
+        System.out.println("        Last Name: " + (!lastName.isEmpty() ? lastName : "Not changed"));
+        System.out.println("        Date of Birth: " + (!dobString.isEmpty() ? dobString : "Not changed"));
+        System.out.println("        Is HIV Positive: " + (!hivPositiveString.isEmpty() ? parseBoolean(hivPositiveString) : "Not changed"));
+        System.out.println("        Date of Infection: " + (!doiString.isEmpty() ? doiString : "Not changed"));
+        System.out.println("        On ART Drugs: " + (!onARTDrugsString.isEmpty() ? parseBoolean(onARTDrugsString) : "Not changed"));
+        System.out.println("        Start ART Date: " + (!artStartDateString.isEmpty() ? artStartDateString : "Not changed"));
+        System.out.println("        Country: " + (!country.isEmpty() ? country : "Not changed"));
+        Patient updatePatient = new Patient(currentPatient.getUuid(), firstName, lastName, "", "", (!dobString.isEmpty() ? parseDate(dobString) : null), (!hivPositiveString.isEmpty() ? parseBoolean(hivPositiveString) : ""),
+        (!doiString.isEmpty() ? parseDate(doiString) : null), (!onARTDrugsString.isEmpty() ? parseBoolean(onARTDrugsString) : ""), (!artStartDateString.isEmpty() ? parseDate(artStartDateString) : null), country, null);
+        updatePatient.modifyProfile();
+    }
+
     private static void registerPatient() {
         clearScreen();
 
-        System.out.print("Enter UUID Code: ");
+        System.out.print("        Enter UUID Code: ");
         String uuid_code = scanner.nextLine().trim();
         while (uuid_code.isEmpty()) {
-            System.out.print("UUID Code cannot be empty. Please enter again: ");
+            System.out.print("        UUID Code cannot be empty. Please enter again: ");
             uuid_code = scanner.nextLine().trim();
         }
 
@@ -103,13 +210,15 @@ public class Test {
         try {
             String scriptPath = findScript("user-manager.sh");
             if (scriptPath == null) {
-                System.out.println("Script not found.");
+                System.out.println();
+                System.out.println("        Script not found.");
                 return;
             }
 
             String response = executeScript(scriptPath, "validate-uuid", uuid_code);
             if (response.startsWith("Invalid") || response.isEmpty()) {
-                System.out.println(response);
+                System.out.println();
+                System.out.println("        " + response);
                 pressEnterToContinue();
                 return;
             }
@@ -117,92 +226,92 @@ public class Test {
             String email = response.trim();
             System.out.println("Complete registration for user with email: " + email);
 
-            System.out.print("First Name: ");
+            System.out.print("        First Name: ");
             String firstName = scanner.nextLine().trim();
             while (firstName.isEmpty() || !isValidName(firstName)) {
                 if(!isValidName(firstName)){
-                    System.out.println("Invalid input. Name should only contain letters. Please enter again: ");
+                    System.out.println("        Invalid input. Name should only contain letters. Please enter again: ");
                 }else{
-                    System.out.print("First Name cannot be empty. Please enter again: ");
+                    System.out.print("        First Name cannot be empty. Please enter again: ");
                 }
                 firstName = scanner.nextLine().trim();
             }
 
-            System.out.print("Last Name: ");
+            System.out.print("        Last Name: ");
             String lastName = scanner.nextLine().trim();
             while (lastName.isEmpty() || !isValidName(lastName)) {
                 if(!isValidName(lastName)){
-                    System.out.println("Invalid input. Name should only contain letters. Please enter again: ");
+                    System.out.println("        Invalid input. Name should only contain letters. Please enter again: ");
                 }else{
-                    System.out.print("First Name cannot be empty. Please enter again: ");
+                    System.out.print("        Last Name cannot be empty. Please enter again: ");
                 }
                 lastName = scanner.nextLine().trim();
             }
         
-            String password = readPassword("Password: ");
+            String password = readPassword("        Password: ");
             while (password.isEmpty()) {
-                System.out.print("Password cannot be empty. Please enter again: ");
-                password = readPassword("Password: ");
+                System.out.print("        Password cannot be empty. Please enter again: ");
+                password = readPassword("        Password: ");
             }
         
-            System.out.print("Date of Birth (yyyy-MM-dd): ");
+            System.out.print("        Date of Birth (yyyy-MM-dd): ");
             Date dateOfBirth = parseDate(scanner.nextLine().trim());
             while (dateOfBirth == null) {
-                System.out.print("Invalid date format. Please enter Date of Birth (yyyy-MM-dd): ");
+                System.out.print("        Invalid date format. Please enter Date of Birth (yyyy-MM-dd): ");
                 dateOfBirth = parseDate(scanner.nextLine().trim());
             }
         
-            System.out.print("Is HIV Positive (true/false): ");
-            Boolean isHivPositive = parseBoolean(scanner.nextLine().trim());
+            System.out.print("        Is HIV Positive (true/false): ");
+            String isHivPositive = parseBoolean(scanner.nextLine().trim());
             while (isHivPositive == null) {
-                System.out.print("Invalid input. Please enter true or false for HIV Positive: ");
+                System.out.print("        Invalid input. Please enter true or false for HIV Positive: ");
                 isHivPositive = parseBoolean(scanner.nextLine().trim());
             }
         
             Date dateOfInfection = null;
-            if (isHivPositive) {
-                System.out.print("Date of Infection (yyyy-MM-dd): ");
+            if (isHivPositive.equals("true")) {
+                System.out.print("        Date of Infection (yyyy-MM-dd): ");
                 dateOfInfection = parseDate(scanner.nextLine().trim());
                 while (dateOfInfection == null || dateOfInfection.before(dateOfBirth)) {
                     if(dateOfInfection == null){
-                        System.out.print("Invalid date format. Please enter Date of Infection (yyyy-MM-dd): ");
+                        System.out.print("        Invalid date format. Please enter Date of Infection (yyyy-MM-dd): ");
                         dateOfInfection = parseDate(scanner.nextLine().trim());
                     }else{
-                        System.out.print("Invalid date. Date of infection should be after the date of birth: ");
+                        System.out.print("        Invalid date. Date of infection should be after the date of birth: ");
                         dateOfInfection = parseDate(scanner.nextLine().trim());
                     }
                 }
             }
         
-            System.out.print("On ART Drugs (true/false): ");
-            Boolean onARTDrugs = parseBoolean(scanner.nextLine().trim());
+            System.out.print("        On ART Drugs (true/false): ");
+            String onARTDrugs = parseBoolean(scanner.nextLine().trim());
             while (onARTDrugs == null) {
-                System.out.print("Invalid input. Please enter true or false for On ART Drugs: ");
+                System.out.print("        Invalid input. Please enter true or false for On ART Drugs: ");
                 onARTDrugs = parseBoolean(scanner.nextLine().trim());
             }
         
             Date startARTDate = null;
-            if (onARTDrugs) {
-                System.out.print("Start ART Date (yyyy-MM-dd): ");
+            if (onARTDrugs.equals("true")) {
+                System.out.print("        Start ART Date (yyyy-MM-dd): ");
                 startARTDate = parseDate(scanner.nextLine().trim());
                 while (startARTDate == null || startARTDate.before(dateOfInfection)) {
                     if(startARTDate == null){
-                        System.out.print("Invalid date format. Please enter Start ART Date (yyyy-MM-dd): ");
+                        System.out.print("        Invalid date format. Please enter Start ART Date (yyyy-MM-dd): ");
                         startARTDate = parseDate(scanner.nextLine().trim());
                     }else{
-                        System.out.print("Invalid date. Start ART Date should be after the Date of infection: ");
+                        System.out.print("        Invalid date. Start ART Date should be after the Date of infection: ");
                         startARTDate = parseDate(scanner.nextLine().trim());
                     }
                 }
             }
         
-            System.out.print("Country: ");
+            System.out.print("        Country: ");
             String country = scanner.nextLine().trim();
             while (country.isEmpty() || getCountryLifeExpectancy(country).equals("Invalid country code")) {
                 if(country.isEmpty()){
-                    System.out.print("Country cannot be empty. Please enter again: ");
+                    System.out.print("        Country cannot be empty. Please enter again: ");
                 }else{
-                    System.out.print("Invalid country code. Please enter again using Alpha-3 code: ");
+                    System.out.print("        Invalid country code. Please enter again using Alpha-3 code: ");
                 }
                 country = scanner.nextLine().trim();
             }
@@ -211,10 +320,11 @@ public class Test {
                     dateOfInfection, onARTDrugs, startARTDate, country, null);
         
             response = currentPatient.completeRegistration();
-            System.out.println(response);
+            System.out.println();
+            System.out.println("        " + response);
             pressEnterToContinue();
         } catch (IOException e) {
-            System.out.println("System error, please contact the administrator");
+            System.out.println("        System error, please contact the administrator");
             pressEnterToContinue();
         }
     }
@@ -243,11 +353,11 @@ public class Test {
         }
     }
     
-    private static Boolean parseBoolean(String boolStr) {
+    private static String parseBoolean(String boolStr) {
         if (boolStr.equalsIgnoreCase("true") || boolStr.equalsIgnoreCase("yes") || boolStr.equalsIgnoreCase("y")) {
-            return true;
+            return "true";
         } else if (boolStr.equalsIgnoreCase("false") || boolStr.equalsIgnoreCase("no") || boolStr.equalsIgnoreCase("n")) {
-            return false;
+            return "false";
         } else {
             return null;
         }
@@ -256,81 +366,100 @@ public class Test {
     private static void adminMenu() {
         while (true) {
             clearScreen();
-            System.out.println("Admin Menu");
-            System.out.println("1. Delete Users");
-            System.out.println("2. Export User Data");
-            System.out.println("3. Aggregate User Data");
-            System.out.println("4. Initiate Registration");
-            System.out.println("5. Get All Users");
-            System.out.println("6. Logout");
-
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
+            System.out.println("        ##############################################");
+            System.out.println("        #                                            #");
+            System.out.println("        #                 Admin Menu                 #");
+            System.out.println("        #                                            #");
+            System.out.println("        ##############################################");
+            System.out.println();
+            System.out.println("        1. Delete Users");
+            System.out.println("        2. Export User Data");
+            System.out.println("        3. Aggregate User Data");
+            System.out.println("        4. Initiate Registration");
+            System.out.println("        5. Get All Users");
+            System.out.println("        6. Logout");
+            System.out.println();
+            System.out.print("        Your choice: ");
+            String choice = scanner.nextLine();
 
             switch (choice) {
-                case 1:
+                case "1":
+                    clearScreen();
                     currentAdmin.deleteUsers();
                     pressEnterToContinue();
                     break;
-                case 2:
+                case "2":
+                    clearScreen();
                     currentAdmin.exportUserData();
                     pressEnterToContinue();
                     break;
-                case 3:
+                case "3":
+                    clearScreen();
                     currentAdmin.aggregateUserData();
                     pressEnterToContinue();
                     break;
-                case 4:
+                case "4":
                     clearScreen();
                     currentAdmin.initiateRegistration("ADMIN");
                     pressEnterToContinue();
                     break;
-                case 5:
+                case "5":
+                    clearScreen();
                     currentAdmin.getAllUsers();
                     pressEnterToContinue();
                     break;
-                case 6:
+                case "6":
                     currentAdmin.logout();
                     currentAdmin = null;
                     return;
                 default:
-                    System.out.println("Invalid choice, please try again.");
+                    System.out.println();
+                    System.out.println("        Invalid choice, please try again.");
                     pressEnterToContinue();
             }
         }
     }
 
-    private static void patientMenu() {
+    private static void patientMenu() throws ParseException {
         while (true) {
             clearScreen();
-            System.out.println("Patient Menu");
-            System.out.println("1. Modify Profile");
-            System.out.println("2. View Profile");
-            System.out.println("3. Compute Life Expectancy");
-            System.out.println("4. Logout");
-
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
+            System.out.println("        ##############################################");
+            System.out.println("        #                                            #");
+            System.out.println("        #                Patient Menu                #");
+            System.out.println("        #                                            #");
+            System.out.println("        ##############################################");
+            System.out.println();
+            System.out.println("        1. Modify Profile");
+            System.out.println("        2. View Profile");
+            System.out.println("        3. Compute Life Expectancy");
+            System.out.println("        4. Logout");
+            System.out.println();
+            System.out.print("        Your choice: ");
+            String choice = scanner.nextLine();
 
             switch (choice) {
-                case 1:
-                    currentPatient.modifyProfile();
+                case "1":
+                    clearScreen();
+                    modifyProfile();
                     pressEnterToContinue();
                     break;
-                case 2:
+                case "2":
+                    clearScreen();
                     currentPatient.viewProfile();
                     pressEnterToContinue();
                     break;
-                case 3:
+                case "3":
+                    clearScreen();
                     currentPatient.computeLifeExpectancy();
                     pressEnterToContinue();
                     break;
-                case 4:
+                case "4":
                     currentPatient.logout();
                     currentPatient = null;
                     return;
                 default:
-                    System.out.println("Invalid choice, please try again.");
+                    System.out.println();
+                    System.out.println("        Invalid choice, please try again.");
                     pressEnterToContinue();
             }
         }
@@ -353,7 +482,8 @@ public class Test {
     }
 
     private static void pressEnterToContinue() {
-        System.out.println("Press Enter to continue...");
+        System.out.println();
+        System.out.println("        Press Enter to continue...");
         scanner.nextLine();
     }
 
@@ -397,13 +527,13 @@ public class Test {
             BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
             String errorLine;
             while ((errorLine = errorReader.readLine()) != null) {
-                System.err.println("Error: " + errorLine);
+                System.err.println("        Error: " + errorLine);
             }
 
             // Wait for the script to finish
             int exitCode = process.waitFor();
             if (exitCode != 0) {
-                System.err.println("Script exited with error code: " + exitCode);
+                System.err.println("        Script exited with error code: " + exitCode);
             }
 
         } catch (IOException | InterruptedException e) {
