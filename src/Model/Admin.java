@@ -68,17 +68,29 @@ public class Admin extends User {
     }
 
     public void aggregateUserData() {
-        String csvFile = getFilePath("user_data_aggregated.csv");
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(csvFile))) {
-            writer.write("UUID,Email,FirstName,LastName,DateOfBirth,IsHivPositive,DateOfInfection,OnARTDrugs,StartARTDate,Country,LifeExpectancy");
-            writer.newLine();
-
-            // for (User user : users) {
-            //     writer.write(userToCsv(user));
-            //     writer.newLine();
-            // }
-
-            System.out.println("User data aggregated successfully to " + csvFile);
+        try {
+            String scriptPath = findScript("user-manager.sh");
+            if (scriptPath != null) {
+                String response = executeScript(scriptPath, "calculate-survival-metrics");
+                String csvFile = getFilePath("user_data_aggregated.csv");
+                BufferedWriter writer = new BufferedWriter(new FileWriter(csvFile));
+    
+                // Header for the aggregated data
+                writer.write("Total Registered Patients,Number of Unique Countries,Metric,Value");
+                writer.newLine();
+    
+                // Split the response by new lines and write each line to the CSV
+                String[] aggregatedDataLines = response.split("\n");
+                for (String line : aggregatedDataLines) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+    
+                writer.close();
+                System.out.println("           User data aggregated successfully ");
+            } else {
+                System.out.println("Script not found.");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

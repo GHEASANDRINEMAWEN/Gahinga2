@@ -1,0 +1,18 @@
+Total Registered Patients,502
+Number of Unique Countries,184
+
+Survival Rate Metrics (Years)
+Metric,Value
+Mean (Years),52
+Median (Years),47
+25th Percentile (Years),46
+75th Percentile (Years),35
+
+Age Metrics
+Metric,Value
+Mean Age of Registered Patients,47
+Median Age of Registered Patients,32
+
+HIV Metrics
+Mean Age of HIV-Positive Patients,48
+Country with Highest HIV-Positive Patients,ZW

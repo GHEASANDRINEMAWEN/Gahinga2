@@ -178,6 +178,8 @@ complete_registration() {
   echo "Expected demise date: $demise_date"
 }
 
+
+
 logout(){
   email=$1
 
@@ -452,21 +454,185 @@ modify_patient_profile() {
   fi
 }
 
+calculate_survival_metrics() {
+  local input_file="$PATIENTS_STORE"
+  local output_file="$SCRIPT_DIR/../Storage/combined_statistics_and_classifications.csv"
+
+  # Check if input file exists
+  if [ ! -f "$input_file" ]; then
+    echo "Patient data file does not exist."
+    exit 1
+  fi
+
+  # Temporary files for calculations
+  temp_file=$(mktemp)
+
+  # Extract remaining years (survival rates) for statistics
+  awk -F, '{print $10}' "$input_file" | awk 'NR > 1 && $1 != "" {print $1}' > "$temp_file"
+
+  # Calculate survival statistics
+  mean_years=$(awk '{ sum += $1; count++ } END { if (count > 0) print int((sum / count) + 0.5); else print "N/A" }' "$temp_file")
+  median_years=$(awk '{ a[i++] = $1 } END { if (i % 2 == 1) print a[int(i/2)] ; else print int(((a[int(i/2)-1] + a[int(i/2)]) / 2) + 0.5) }' "$temp_file")
+  percentile_25_years=$(awk '{ a[i++] = $1 } END { print int(a[int(0.25*(i+1))] + 0.5) }' "$temp_file")
+  percentile_75_years=$(awk '{ a[i++] = $1 } END { print int(a[int(0.75*(i+1))] + 0.5) }' "$temp_file")
+
+  # Initialize statistics
+  total_patients=0
+  declare -A countries
+  hiv_positive_count=0
+  on_art_count=0
+  ages=()
+  hiv_ages=()
+  current_year=$(date +"%Y")
+
+  # Process each line in the input file
+  while IFS=',' read -r uuid firstname lastname dateOfBirth hasHIV diagnosisDate onART artStartDate countryISO remaining_years demise_date; do
+    # Skip header line
+    if [ "$uuid" == "UUID" ]; then continue; fi
+
+    # Increment patient count
+    total_patients=$((total_patients + 1))
+
+    # Track unique countries
+    countries["$countryISO"]=1
+
+    # Count HIV positive patients and those on ART
+    if [ "$hasHIV" == "true" ]; then
+      hiv_positive_count=$((hiv_positive_count + 1))
+      hiv_ages+=($(($current_year - ${dateOfBirth:0:4})))
+    fi
+    if [ "$onART" == "true" ]; then
+      on_art_count=$((on_art_count + 1))
+    fi
+
+    # Track ages
+    age=$(($current_year - ${dateOfBirth:0:4}))
+    ages+=("$age")
+  done < "$input_file"
+
+  # Calculate age statistics
+  mean_age=$(awk '{ sum += $1; count++ } END { if (count > 0) print int((sum / count) + 0.5); else print "N/A" }' <(printf "%s\n" "${ages[@]}"))
+  median_age=$(awk '{ a[i++] = $1 } END { if (i % 2 == 1) print a[int(i/2)] ; else print int(((a[int(i/2)-1] + a[int(i/2)]) / 2) + 0.5) }' <(printf "%s\n" "${ages[@]}"))
+
+  # Calculate HIV-positive age statistics
+  mean_hiv_age=$(awk '{ sum += $1; count++ } END { if (count > 0) print int((sum / count) + 0.5); else print "N/A" }' <(printf "%s\n" "${hiv_ages[@]}"))
+
+  # Determine country with the highest number of HIV-positive patients
+  max_hiv_country=$(for country in "${!countries[@]}"; do
+    echo "$country ${hiv_positive_count[$country]}"
+  done | sort -k2 -n | tail -1 | awk '{print $1}')
+
+  # Save the focused analysis to the output file
+  {
+    echo "Total Registered Patients,$total_patients"
+    echo "Number of Unique Countries,${#countries[@]}"
+    echo
+    echo "Survival Rate Metrics (Years)"
+    echo "Metric,Value"
+    echo "Mean (Years),$mean_years"
+    echo "Median (Years),$median_years"
+    echo "25th Percentile (Years),$percentile_25_years"
+    echo "75th Percentile (Years),$percentile_75_years"
+    echo
+    echo "Age Metrics"
+    echo "Metric,Value"
+    echo "Mean Age of Registered Patients,$mean_age"
+    echo "Median Age of Registered Patients,$median_age"
+    echo
+    echo "HIV Metrics"
+    echo "Mean Age of HIV-Positive Patients,$mean_hiv_age"
+    echo "Country with Highest HIV-Positive Patients,$max_hiv_country"
+  } > "$output_file"
+
+  # Cleanup
+  rm "$temp_file"
+  echo "Focused analysis saved to $output_file"
+}
+
+generate_icalendar() {
+    local input_file="$PATIENTS_STORE"
+    local output_file="$SCRIPT_DIR/../Storage/demise_dates.ics"
+    local user_uuid="$1"
+
+    if [ -z "$user_uuid" ]; then
+        echo "Usage: generate_icalendar <UUID>"
+        exit 1
+    fi
+
+    if [ ! -f "$input_file" ]; then
+        echo "Patient data file does not exist."
+        exit 1
+    fi
+
+    # Create the iCalendar file and write the header
+    {
+        echo "BEGIN:VCALENDAR"
+        echo "VERSION:2.0"
+        echo "PRODID:-//Your Organization//NONSGML v1.0//EN"
+
+        # Read the input file and generate events for the specified UUID
+        while IFS=, read -r uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onARTDrugs startARTDate country lifeExpectancy demiseDate
+        do
+            # Skip header line
+            if [[ "$uuid" != "UUID" ]]; then
+                if [[ "$uuid" == "$user_uuid" ]]; then
+                    echo "Processing UUID: $uuid, Demise Date: $demiseDate"  # Debug line
+
+                    if [[ -n "$demiseDate" ]]; then
+                        # Check if date format is valid
+                        if date -d "$demiseDate" >/dev/null 2>&1; then
+                            # Format the date to iCalendar format (YYYYMMDDTHHMMSSZ)
+                            formatted_date=$(date -d "$demiseDate" +'%Y%m%dT%H%M%SZ')
+                            echo "Formatted Date: $formatted_date"  # Debug line
+                            echo "BEGIN:VEVENT"
+                            echo "UID:${uuid}@yourdomain.com"
+                            echo "DTSTAMP:$(date -u +'%Y%m%dT%H%M%SZ')"
+                            echo "DTSTART:${formatted_date}"
+                            echo "SUMMARY:Demise of ${firstname} ${lastname}"
+                            echo "DESCRIPTION:Patient ${firstname} ${lastname} with UUID ${uuid} has passed away."
+                            echo "END:VEVENT"
+                        else
+                            echo "Invalid date format for UUID: $uuid, Date: $demiseDate"  # Debug line
+                        fi
+                    fi
+                fi
+            fi
+        done < "$input_file"
+
+        # Write the footer of the iCalendar file
+        echo "END:VCALENDAR"
+    } > "$output_file"
+
+   
+
+    echo "        iCalendar file generated sucessful"
+}
+
+
+
 case $1 in
   "initialize-user-store")
     initialize_user_store
     ;;
   "get-life-expectancy")
+    if [ $# -ne 2 ]; then
+      echo "Usage: $0 get-life-expectancy <countryISO>"
+      exit 1
+    fi
     get_life_expectancy $2
     ;;
   "validate-uuid")
     if [ $# -ne 2 ]; then
-        echo "Usage: $0 validate-uuid <uuid>"
-        exit 1
+      echo "Usage: $0 validate-uuid <uuid>"
+      exit 1
     fi
     validate_uuid $2
     ;;
   "get-all-users")
+    if [ $# -ne 2 ]; then
+      echo "Usage: $0 get-all-users <status>"
+      exit 1
+    fi
     get_all_users $2
     ;;
   "initiate-registration")
@@ -477,7 +643,10 @@ case $1 in
     initiate_registration $2 $3
     ;;
   "complete-registration")
-    shift
+    if [ $# -ne 11 ]; then
+      echo "Usage: $0 complete-registration <uuid> <firstName> <lastName> <dateOfBirth> <hasHIV> <diagnosisDate> <onART> <artStartDate> <countryISO> <password>"
+      exit 1
+    fi
     complete_registration "$@"
     ;;
   "view-profile")
@@ -505,9 +674,19 @@ case $1 in
     shift
     modify_patient_profile "$@"
     ;;
+  "calculate-survival-metrics")
+    calculate_survival_metrics
+    ;;
+    "generate-icalendar")
+    if [ $# -ne 2 ]; then
+      echo "Usage: $0 generate-icalendar <UUID>"
+      exit 1
+    fi
+    generate_icalendar $2
+    ;;
   *)
     echo "Unknown command: $1"
-    echo "Usage: $0 <initialize-user-store|initiate-registration|complete-registration|view-profile|login|modify-patient-profile> [<args>]"
+    echo "Usage: $0 <initialize-user-store|get-life-expectancy|validate-uuid|get-all-users|initiate-registration|complete-registration|view-profile|login|logout|modify-patient-profile|calculate-survival-metrics|generate-icalendar> [<args>]"
     exit 1
     ;;
 esac
