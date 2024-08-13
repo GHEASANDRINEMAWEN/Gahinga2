@@ -431,7 +431,7 @@ public class Test {
             System.out.println();
             System.out.println("        1. Modify Profile");
             System.out.println("        2. View Profile");
-            System.out.println("        3. Compute Life Expectancy");
+            System.out.println("        3. Generate My Demise Date Calendar Reminder");
             System.out.println("        4. Logout");
             System.out.println();
             System.out.print("        Your choice: ");
@@ -449,14 +449,13 @@ public class Test {
                     pressEnterToContinue();
                     break;
                 case "3":
-                    clearScreen();
-                    currentPatient.computeLifeExpectancy();
+                    currentPatient.generateICalendar();
                     pressEnterToContinue();
                     break;
                 case "4":
-                    currentPatient.logout();
-                    currentPatient = null;
-                    return;
+                currentPatient.logout();
+                currentPatient = null;
+                return;    
                 default:
                     System.out.println();
                     System.out.println("        Invalid choice, please try again.");
@@ -543,3 +542,7 @@ public class Test {
         return response.toString().trim(); // Trim to remove any trailing new lines
     }
 }
+
+
+
+
