@@ -7,7 +7,6 @@ import java.io.InputStreamReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Scanner;
 
 public class Patient extends User {
     SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
@@ -18,7 +17,13 @@ public class Patient extends User {
     private Date startARTDate;
     private String country;
     private Date demiseDate;
+    private Double lifeExpectancy;
     private String uuid;
+    private Date lastUpdatedDate;
+
+    public Date getLastUpdatedDate() {
+        return lastUpdatedDate;
+    }
 
     // Default constructor
     public Patient() {
@@ -27,7 +32,7 @@ public class Patient extends User {
     }
 
     // Parameterized constructor
-    public Patient(String uuid, String firstName, String lastName, String email, String password, Date dateOfBirth, String isHivPositive, Date dateOfInfection, String onARTDrugs, Date startARTDate, String country, Date demiseDate) {
+    public Patient(String uuid, String firstName, String lastName, String email, String password, Date dateOfBirth, String isHivPositive, Date dateOfInfection, String onARTDrugs, Date startARTDate, String country, Date demiseDate, Double lifeExpectancy) {
         super(firstName, lastName, email, password);
         setAccessType();
         this.uuid = uuid;
@@ -38,6 +43,7 @@ public class Patient extends User {
         this.startARTDate = startARTDate;
         this.country = country;
         this.demiseDate = demiseDate;
+        this.lifeExpectancy = lifeExpectancy;
     }
 
     // Getters and Setters
@@ -57,6 +63,8 @@ public class Patient extends User {
     public void setCountry(String country) { this.country = country; }
     public Date getDemiseDate() { return demiseDate; }
     public void setDemiseDate(Date demiseDate) { this.demiseDate = demiseDate; }
+    public Double getLifeExpectancy() { return lifeExpectancy; }
+    public void setLifeExpectancy(Double lifeExpectancy) { this.lifeExpectancy = lifeExpectancy; }
 
     public void modifyProfile() {
         // Call the script to update the profile
@@ -71,9 +79,9 @@ public class Patient extends User {
                               getStartARTDate() != null ? new SimpleDateFormat("yyyy-MM-dd").format(getStartARTDate()) : "",
                               getCountry());
                 System.out.println();
-                System.out.println("        Profile updated successfully.");
+                System.out.println("  Profile updated successfully.");
             } else {
-                System.out.println("        Script not found.");
+                System.out.println("  Script not found.");
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -83,47 +91,92 @@ public class Patient extends User {
     public void viewProfile() throws ParseException {
         try {
             String scriptPath = findScript("user-manager.sh");
-            if (scriptPath != null) {
-                String response = executeScript(scriptPath, "view-profile", uuid);
-                System.out.println();
-
+            if (scriptPath == null) {
+                System.out.println("  Script not found.");
+                return;
+            }
+    
+            String response = executeScript(scriptPath, "view-profile", uuid);
+            System.out.println();
+    
             if (response.contains("UUID not found") || response.contains("Access denied") || response.contains("Profile not found")) {
-                System.out.println("        " + response);
-            } else {
-                String[] profile = response.split(",");
-                System.out.println("        User Information:");
-                System.out.println("        =================");
-                System.out.println();
-                setFirstName(profile[0]);
-                System.out.println("        First Name: " + (!profile[0].equals("null") ? profile[0] : "N/A"));
-                setLastName(profile[1]);
-                System.out.println("        Last Name: " + (!profile[1].equals("null") ? profile[1] : "N/A"));
-                if(!profile[2].equals("null")) setDateOfBirth(DATE_FORMAT.parse(profile[2]));
-                System.out.println("        Date of Birth: " + (!profile[2].equals("null") ? profile[2] : "N/A"));
-                setHivPositive(profile[3]);
-                System.out.println("        Is HIV Positive: " + (!profile[3].equals("null") ? profile[3] : "N/A"));
-                if(!profile[4].equals("null")) setDateOfInfection(DATE_FORMAT.parse(profile[4]));
-                System.out.println("        Date of Infection: " + (!profile[4].equals("null") ? profile[4] : "N/A"));
-                setOnARTDrugs(profile[5]);
-                System.out.println("        On ART Drugs: " + (!profile[5].equals("null") ? profile[5] : "N/A"));
-                if(!profile[6].equals("null")) setStartARTDate(DATE_FORMAT.parse(profile[6]));
-                System.out.println("        Date of Start ART: " + (!profile[6].equals("null") ? profile[6] : "N/A"));
-                setCountry(profile[7]);
-                System.out.println("        Country: " + (!profile[7].equals("null") ? profile[7] : "N/A"));
-                System.out.println("        Life Expectancy: " + (!profile[8].equals("null") ? profile[8] : "N/A"));
-                System.out.println("        Demise Date: " + (!profile[9].equals("null") ? profile[9] : "N/A"));
+                System.out.println("  " + response);
+                return;
             }
-            } else {
-                System.out.println("        Script not found.");
-            }
+    
+            String[] profile = response.split(",");
+            System.out.println("╔══════════════════════════════════════════════╗");
+            System.out.println("║               User Information               ║");
+            System.out.println("╠══════════════════════╗╔══════════════════════╣");
+            System.out.println("║                      ║║                      ║");
+    
+            setFirstName(profile[0]);
+            System.out.println(formatRow("First Name", getDisplayValue(profile[0])));
+            System.out.println("║                      ║║                      ║");
+
+            setLastName(profile[1]);
+            System.out.println(formatRow("Last Name", getDisplayValue(profile[1])));
+            System.out.println("║                      ║║                      ║");
+    
+            if (!profile[2].equals("null") && !profile[2].equals("")) setDateOfBirth(DATE_FORMAT.parse(profile[2]));
+            System.out.println(formatRow("Date of Birth", getDisplayValue(profile[2])));
+            System.out.println("║                      ║║                      ║");
+    
+            setHivPositive(profile[3]);
+            System.out.println(formatRow("Is HIV Positive", getDisplayValue(profile[3])));
+            System.out.println("║                      ║║                      ║");
+    
+            if (!profile[4].equals("null") && !profile[4].equals("")) setDateOfInfection(DATE_FORMAT.parse(profile[4]));
+            System.out.println(formatRow("Date of Infection", getDisplayValue(profile[4])));
+            System.out.println("║                      ║║                      ║");
+    
+            setOnARTDrugs(profile[5]);
+            System.out.println(formatRow("On ART Drugs", getDisplayValue(profile[5])));
+            System.out.println("║                      ║║                      ║");
+    
+            if (!profile[6].equals("null") && !profile[6].equals("")) setStartARTDate(DATE_FORMAT.parse(profile[6]));
+            System.out.println(formatRow("Date of Start ART", getDisplayValue(profile[6])));
+            System.out.println("║                      ║║                      ║");
+    
+            setCountry(profile[7]);
+            System.out.println(formatRow("Country", getDisplayValue(profile[7])));
+            System.out.println("║                      ║║                      ║");
+    
+            System.out.println(formatRow("Life Expectancy", getDisplayValue(profile[8])));
+            System.out.println("║                      ║║                      ║");
+            System.out.println(formatRow("Demise Date", getDisplayValue(profile[9])));
+            System.out.println("║                      ║║                      ║");
+            System.out.println("╚══════════════════════╝╚══════════════════════╝");
+    
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
-    public void computeLifeExpectancy() {
-        // Implementation
+    
+    /**
+     * Helper method to format a table row with fixed width columns.
+     * Adjusts the second column to fit the content within the table width.
+     */
+    private String formatRow(String label, String value) {
+        final int labelWidth = 20;
+        final int valueWidth = 20;
+        
+        // Truncate the label if it's too long
+        String formattedLabel = label.length() > labelWidth ? label.substring(0, labelWidth - 3) + "..." : label;
+        
+        // Truncate or pad the value to fit the column
+        String formattedValue = value.length() > valueWidth ? value.substring(0, valueWidth - 3) + "..." : value;
+        
+        // Create a formatted string with fixed-width columns
+        return String.format("║ %-20s ║║ %-20s ║", formattedLabel, formattedValue);
     }
+    
+    /**
+     * Helper method to get displayable value or "N/A" if the value is null.
+     */
+    private String getDisplayValue(String value) {
+        return (value != null && !value.equals("null") && !value.equals("")) ? value : "N/A";
+    }    
 
     @Override
     public void setAccessType(){
@@ -184,6 +237,21 @@ public class Patient extends User {
             }
         }
         return null;
+    }
+
+    public void generateICalendar() {
+        try {
+            String scriptPath = findScript("user-manager.sh"); // Name your script accordingly
+            if (scriptPath != null) {
+                // Execute the script. Adjust parameters if necessary.
+                String output = executeScript(scriptPath, "generate-icalendar",  getUuid());
+                System.out.println(output);
+            } else {
+                System.out.println("        Script not found.");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static String executeScript(String... command) {

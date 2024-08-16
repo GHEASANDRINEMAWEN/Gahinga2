@@ -67,7 +67,7 @@ initiate_registration() {
 
     # Add the new patient to the user store
     echo "$email,$new_uuid,,PATIENT,false,false" >> "$USER_STORE"
-    echo "Registration initiated. Use the following UUID to complete registration: $new_uuid"
+    echo "$new_uuid"
 }
 
 get_life_expectancy() {
@@ -153,6 +153,8 @@ complete_registration() {
   remaining_years=$(echo "$country_lifespan - $current_age" | bc)
   years_delayed=$(($(date -d "$artStartDate" +%Y) - $(date -d "$diagnosisDate" +%Y)))
 
+  last_updated_date=$(date +"%Y-%m-%d")
+
   # Adjust remaining lifespan
   for ((i = 0; i <= $years_delayed; i++)); do
       remaining_years=$(echo "$remaining_years * 0.9" | bc | awk '{print int($1)}')
@@ -172,7 +174,7 @@ complete_registration() {
        print
      }' "$USER_STORE" > "$temp_file" && mv "$temp_file" "$USER_STORE"
 
-  echo "$uuid,$firstName,$lastName,$dateOfBirth,$hasHIV,$diagnosisDate,$onART,$artStartDate,$countryISO,$remaining_years,$demise_date" >> "$PATIENTS_STORE"
+  echo "$uuid,$firstName,$lastName,$dateOfBirth,$hasHIV,$diagnosisDate,$onART,$artStartDate,$countryISO,$remaining_years,$demise_date,$last_updated_date" >> "$PATIENTS_STORE"
   echo "Registration completed for user with UUID: $uuid"
   echo "Expected lifespan: $remaining_years years"
   echo "Expected demise date: $demise_date"
@@ -268,10 +270,10 @@ view_profile() {
       exit 0
   fi
 
-  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate
+  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate lastUpdateDate
   do
     if [[ "$stored_uuid" == "$uuid_code" ]]; then
-      echo "$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate"
+      echo "$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate,$lastUpdateDate"
       return 0
     fi
   done < "$PATIENTS_STORE"
@@ -281,16 +283,12 @@ view_profile() {
 }
 
 get_all_users() {
-  # if [ "$1" != "ADMIN" ]; then
-  #     echo "Access denied"
-  #     exit 0
-  # fi
-
   users=()
 
-  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate
+  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate lastUpdateDate
   do
-    user="$stored_uuid,$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate"
+    email=$(grep "$stored_uuid" "$USER_STORE" | cut -d',' -f1)
+    user="$email,$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate,$lastUpdateDate"
     users+=("$user")
   done < "$PATIENTS_STORE"
 
@@ -375,10 +373,12 @@ modify_patient_profile() {
     fi
   fi
 
+  last_updated_date=$(date +"%Y-%m-%d")
+  
   temp_file=$(mktemp)
   uuid_found=false
 
-  while IFS=, read -r stored_uuid stored_firstName stored_lastName stored_dateOfBirth stored_hasHIV stored_diagnosisDate stored_onART stored_artStartDate stored_countryISO stored_remaining_years stored_demise_date
+  while IFS=, read -r stored_uuid stored_firstName stored_lastName stored_dateOfBirth stored_hasHIV stored_diagnosisDate stored_onART stored_artStartDate stored_countryISO stored_remaining_years stored_demise_date stored_last_modified_date
   do
     if [[ "$stored_uuid" == "$uuid" ]]; then
       # Update fields only if new values are provided
@@ -435,10 +435,10 @@ modify_patient_profile() {
         demise_date=$(date -d "+$rounded_years years" +"%Y-%m-%d")
       fi
 
-      echo "$uuid,$new_firstName,$new_lastName,$new_dateOfBirth,$new_hasHIV,$new_diagnosisDate,$new_onART,$new_artStartDate,$new_countryISO,$rounded_years,$demise_date" >> "$temp_file"
+      echo "$uuid,$new_firstName,$new_lastName,$new_dateOfBirth,$new_hasHIV,$new_diagnosisDate,$new_onART,$new_artStartDate,$new_countryISO,$rounded_years,$demise_date,$last_updated_date" >> "$temp_file"
       uuid_found=true
     else
-      echo "$stored_uuid,$stored_firstName,$stored_lastName,$stored_dateOfBirth,$stored_hasHIV,$stored_diagnosisDate,$stored_onART,$stored_artStartDate,$stored_countryISO,$stored_remaining_years,$stored_demise_date" >> "$temp_file"
+      echo "$stored_uuid,$stored_firstName,$stored_lastName,$stored_dateOfBirth,$stored_hasHIV,$stored_diagnosisDate,$stored_onART,$stored_artStartDate,$stored_countryISO,$stored_remaining_years,$stored_demise_date,$last_updated_date" >> "$temp_file"
     fi
   done < "$PATIENTS_STORE"
 
@@ -450,6 +450,164 @@ modify_patient_profile() {
     rm "$temp_file"
     exit 1
   fi
+}
+
+calculate_survival_metrics() {
+  local input_file="$PATIENTS_STORE"
+
+  # Check if input file exists
+  if [ ! -f "$input_file" ]; then
+    echo "Patient data file does not exist."
+    exit 1
+  fi
+
+  # Temporary files for calculations
+  temp_file=$(mktemp)
+
+  # Extract remaining years (survival rates) for statistics
+  awk -F, '{print $10}' "$input_file" | awk 'NR > 1 && $1 != "" {print $1}' > "$temp_file"
+
+  # Calculate survival statistics
+  mean_years=$(awk '{ sum += $1; count++ } END { if (count > 0) print int((sum / count) + 0.5); else print "N/A" }' "$temp_file")
+  median_years=$(awk '{ a[i++] = $1 } END { if (i % 2 == 1) print a[int(i/2)] ; else print int(((a[int(i/2)-1] + a[int(i/2)]) / 2) + 0.5) }' "$temp_file")
+  percentile_25_years=$(awk '{ a[i++] = $1 } END { print int(a[int(0.25*(i+1))] + 0.5) }' "$temp_file")
+  percentile_75_years=$(awk '{ a[i++] = $1 } END { print int(a[int(0.75*(i+1))] + 0.5) }' "$temp_file")
+
+  # Initialize statistics
+  total_patients=0
+  declare -A countries
+  hiv_positive_count=0
+  on_art_count=0
+  ages=()
+  hiv_ages=()
+  current_year=$(date +"%Y")
+
+  # Process each line in the input file
+  while IFS=',' read -r uuid firstname lastname dateOfBirth hasHIV diagnosisDate onART artStartDate countryISO remaining_years demise_date; do
+    # Skip header line
+    if [ "$uuid" == "UUID" ]; then continue; fi
+
+    # Increment patient count
+    total_patients=$((total_patients + 1))
+
+    # Track unique countries
+    countries["$countryISO"]=1
+
+    # Count HIV positive patients and those on ART
+    if [ "$hasHIV" == "true" ]; then
+      hiv_positive_count=$((hiv_positive_count + 1))
+      hiv_ages+=($(($current_year - ${dateOfBirth:0:4})))
+    fi
+    if [ "$onART" == "true" ]; then
+      on_art_count=$((on_art_count + 1))
+    fi
+
+    # Track ages
+    age=$(($current_year - ${dateOfBirth:0:4}))
+    ages+=("$age")
+  done < "$input_file"
+
+  # Calculate age statistics
+  mean_age=$(awk '{ sum += $1; count++ } END { if (count > 0) print int((sum / count) + 0.5); else print "N/A" }' <(printf "%s\n" "${ages[@]}"))
+  median_age=$(awk '{ a[i++] = $1 } END { if (i % 2 == 1) print a[int(i/2)] ; else print int(((a[int(i/2)-1] + a[int(i/2)]) / 2) + 0.5) }' <(printf "%s\n" "${ages[@]}"))
+
+  # Calculate HIV-positive age statistics
+  mean_hiv_age=$(awk '{ sum += $1; count++ } END { if (count > 0) print int((sum / count) + 0.5); else print "N/A" }' <(printf "%s\n" "${hiv_ages[@]}"))
+
+  # Determine country with the highest number of HIV-positive patients
+  max_hiv_country=$(for country in "${!countries[@]}"; do
+    echo "$country ${hiv_positive_count[$country]}"
+  done | sort -k2 -n | tail -1 | awk '{print $1}')
+
+  # Output the aggregated data
+  {
+    echo "Total Registered Patients,$total_patients"
+    echo "Number of Unique Countries,${#countries[@]}"
+    echo
+    echo "Survival Rate Metrics (Years)"
+    echo "-----------------------------"
+    echo
+    echo "Metric,Value"
+    echo "Mean (Years),$mean_years"
+    echo "Median (Years),$median_years"
+    echo "25th Percentile (Years),$percentile_25_years"
+    echo "75th Percentile (Years),$percentile_75_years"
+    echo
+    echo "Age Metrics"
+    echo "-----------"
+    echo
+    echo "Metric,Value"
+    echo "Mean Age of Registered Patients,$mean_age"
+    echo "Median Age of Registered Patients,$median_age"
+    echo
+    echo "HIV Metrics"
+    echo "-----------"
+    echo
+    echo "Mean Age of HIV-Positive Patients,$mean_hiv_age"
+    echo "Country with Highest HIV-Positive Patients,$max_hiv_country"
+  }
+
+  # Cleanup
+  rm "$temp_file"
+}
+
+generate_icalendar() {
+    local input_file="$PATIENTS_STORE"
+    local output_file="$SCRIPT_DIR/../Storage/demise_dates.ics"
+    local user_uuid="$1"
+
+    if [ -z "$user_uuid" ]; then
+        echo "Usage: generate_icalendar <UUID>"
+        exit 1
+    fi
+
+    if [ ! -f "$input_file" ]; then
+        echo "Patient data file does not exist."
+        exit 1
+    fi
+
+    # Create the iCalendar file and write the header
+    {
+        echo "BEGIN:VCALENDAR"
+        echo "VERSION:2.0"
+        echo "PRODID:-//Your Organization//NONSGML v1.0//EN"
+
+        # Read the input file and generate events for the specified UUID
+        while IFS=, read -r uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onARTDrugs startARTDate country lifeExpectancy demiseDate
+        do
+            # Skip header line
+            if [[ "$uuid" != "UUID" ]]; then
+                if [[ "$uuid" == "$user_uuid" ]]; then
+                    echo "Processing UUID: $uuid, Demise Date: $demiseDate"  # Debug line
+
+                    if [[ -n "$demiseDate" ]]; then
+                        # Check if date format is valid
+                        if date -d "$demiseDate" >/dev/null 2>&1; then
+                            # Format the date to iCalendar format (YYYYMMDDTHHMMSSZ)
+                            formatted_date=$(date -d "$demiseDate" +'%Y%m%dT%H%M%SZ')
+                            echo "Formatted Date: $formatted_date"  # Debug line
+                            echo "BEGIN:VEVENT"
+                            echo "UID:${uuid}@yourdomain.com"
+                            echo "DTSTAMP:$(date -u +'%Y%m%dT%H%M%SZ')"
+                            echo "DTSTART:${formatted_date}"
+                            echo "SUMMARY:Demise of ${firstname} ${lastname}"
+                            echo "DESCRIPTION:Patient ${firstname} ${lastname} with UUID ${uuid} has passed away."
+                            echo "END:VEVENT"
+                        else
+                            echo "Invalid date format for UUID: $uuid, Date: $demiseDate"  # Debug line
+                        fi
+                    fi
+                fi
+            fi
+        done < "$input_file"
+
+        # Write the footer of the iCalendar file
+        echo "END:VCALENDAR"
+    } > "$output_file"
+
+   
+
+    echo "        iCalendar file generated sucessful"
 }
 
 case $1 in
@@ -504,6 +662,16 @@ case $1 in
   "modify-patient-profile")
     shift
     modify_patient_profile "$@"
+    ;;
+  "calculate-survival-metrics")
+    calculate_survival_metrics
+    ;;
+  "generate-icalendar")
+    if [ $# -ne 2 ]; then
+      echo "Usage: $0 generate-icalendar <UUID>"
+      exit 1
+    fi
+    generate_icalendar $2
     ;;
   *)
     echo "Unknown command: $1"
