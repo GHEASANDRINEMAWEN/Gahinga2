@@ -105,23 +105,6 @@ public class Patient extends User {
 
         return fullPath;
     }
-  
-
-    public void generateICalendar() {
-        try {
-            String scriptPath = findScript("user-manager.sh"); // Name your script accordingly
-            if (scriptPath != null) {
-                // Execute the script. Adjust parameters if necessary.
-                String output = executeScript(scriptPath, "generate-icalendar",  getUuid());
-                System.out.println(output);
-            } else {
-                System.out.println("        Script not found.");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    
 
 
 
