@@ -501,3 +501,6 @@ Emily.Wells@gmail.com,caa4ac6e-4473-460b-8626-dc44b648c7ee,'a665a45920422f9d417e
 Sabrina.Ellis@gmail.com,35abce88-0682-46f4-baee-211bba20d027,'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',PATIENT,true,false
 Madeline.Jones@hotmail.com,7cf4939c-6dcb-4c2c-b2ed-d70d2bbc8d5e,'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',PATIENT,true,false
 Alexandria.Harris@hotmail.com,3d332430-48bc-4eb7-b519-50f5cabf3e6f,'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',PATIENT,true,false
+musana@gmail.com,9d8f5aa6-a85c-40f6-bf79-f20669449b91,a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3,PATIENT,true,false
+brice.nsabimana@gmail.com,f0832015-128d-4e3a-bddb-a52fa2859c58,a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3,PATIENT,true,false
+

@@ -67,7 +67,7 @@ initiate_registration() {
 
     # Add the new patient to the user store
     echo "$email,$new_uuid,,PATIENT,false,false" >> "$USER_STORE"
-    echo "Registration initiated. Use the following UUID to complete registration: $new_uuid"
+    echo "$new_uuid"
 }
 
 get_life_expectancy() {
@@ -153,6 +153,8 @@ complete_registration() {
   remaining_years=$(echo "$country_lifespan - $current_age" | bc)
   years_delayed=$(($(date -d "$artStartDate" +%Y) - $(date -d "$diagnosisDate" +%Y)))
 
+  last_updated_date=$(date +"%Y-%m-%d")
+
   # Adjust remaining lifespan
   for ((i = 0; i <= $years_delayed; i++)); do
       remaining_years=$(echo "$remaining_years * 0.9" | bc | awk '{print int($1)}')
@@ -172,7 +174,7 @@ complete_registration() {
        print
      }' "$USER_STORE" > "$temp_file" && mv "$temp_file" "$USER_STORE"
 
-  echo "$uuid,$firstName,$lastName,$dateOfBirth,$hasHIV,$diagnosisDate,$onART,$artStartDate,$countryISO,$remaining_years,$demise_date" >> "$PATIENTS_STORE"
+  echo "$uuid,$firstName,$lastName,$dateOfBirth,$hasHIV,$diagnosisDate,$onART,$artStartDate,$countryISO,$remaining_years,$demise_date,$last_updated_date" >> "$PATIENTS_STORE"
   echo "Registration completed for user with UUID: $uuid"
   echo "Expected lifespan: $remaining_years years"
   echo "Expected demise date: $demise_date"
@@ -270,10 +272,10 @@ view_profile() {
       exit 0
   fi
 
-  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate
+  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate lastUpdateDate
   do
     if [[ "$stored_uuid" == "$uuid_code" ]]; then
-      echo "$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate"
+      echo "$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate,$lastUpdateDate"
       return 0
     fi
   done < "$PATIENTS_STORE"
@@ -283,16 +285,12 @@ view_profile() {
 }
 
 get_all_users() {
-  # if [ "$1" != "ADMIN" ]; then
-  #     echo "Access denied"
-  #     exit 0
-  # fi
-
   users=()
 
-  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate
+  while IFS=, read -r stored_uuid firstname lastname dateOfBirth isHivPositive dateOfInfection onArtDrugs startARTDate country lifeExpectancy demiseDate lastUpdateDate
   do
-    user="$stored_uuid,$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate"
+    email=$(grep "$stored_uuid" "$USER_STORE" | cut -d',' -f1)
+    user="$email,$firstname,$lastname,$dateOfBirth,$isHivPositive,$dateOfInfection,$onArtDrugs,$startARTDate,$country,$lifeExpectancy,$demiseDate,$lastUpdateDate"
     users+=("$user")
   done < "$PATIENTS_STORE"
 
@@ -377,10 +375,12 @@ modify_patient_profile() {
     fi
   fi
 
+  last_updated_date=$(date +"%Y-%m-%d")
+  
   temp_file=$(mktemp)
   uuid_found=false
 
-  while IFS=, read -r stored_uuid stored_firstName stored_lastName stored_dateOfBirth stored_hasHIV stored_diagnosisDate stored_onART stored_artStartDate stored_countryISO stored_remaining_years stored_demise_date
+  while IFS=, read -r stored_uuid stored_firstName stored_lastName stored_dateOfBirth stored_hasHIV stored_diagnosisDate stored_onART stored_artStartDate stored_countryISO stored_remaining_years stored_demise_date stored_last_modified_date
   do
     if [[ "$stored_uuid" == "$uuid" ]]; then
       # Update fields only if new values are provided
@@ -437,10 +437,10 @@ modify_patient_profile() {
         demise_date=$(date -d "+$rounded_years years" +"%Y-%m-%d")
       fi
 
-      echo "$uuid,$new_firstName,$new_lastName,$new_dateOfBirth,$new_hasHIV,$new_diagnosisDate,$new_onART,$new_artStartDate,$new_countryISO,$rounded_years,$demise_date" >> "$temp_file"
+      echo "$uuid,$new_firstName,$new_lastName,$new_dateOfBirth,$new_hasHIV,$new_diagnosisDate,$new_onART,$new_artStartDate,$new_countryISO,$rounded_years,$demise_date,$last_updated_date" >> "$temp_file"
       uuid_found=true
     else
-      echo "$stored_uuid,$stored_firstName,$stored_lastName,$stored_dateOfBirth,$stored_hasHIV,$stored_diagnosisDate,$stored_onART,$stored_artStartDate,$stored_countryISO,$stored_remaining_years,$stored_demise_date" >> "$temp_file"
+      echo "$stored_uuid,$stored_firstName,$stored_lastName,$stored_dateOfBirth,$stored_hasHIV,$stored_diagnosisDate,$stored_onART,$stored_artStartDate,$stored_countryISO,$stored_remaining_years,$stored_demise_date,$last_updated_date" >> "$temp_file"
     fi
   done < "$PATIENTS_STORE"
 
@@ -456,7 +456,6 @@ modify_patient_profile() {
 
 calculate_survival_metrics() {
   local input_file="$PATIENTS_STORE"
-  local output_file="$SCRIPT_DIR/../Storage/combined_statistics_and_classifications.csv"
 
   # Check if input file exists
   if [ ! -f "$input_file" ]; then
@@ -522,12 +521,14 @@ calculate_survival_metrics() {
     echo "$country ${hiv_positive_count[$country]}"
   done | sort -k2 -n | tail -1 | awk '{print $1}')
 
-  # Save the focused analysis to the output file
+  # Output the aggregated data
   {
     echo "Total Registered Patients,$total_patients"
     echo "Number of Unique Countries,${#countries[@]}"
     echo
     echo "Survival Rate Metrics (Years)"
+    echo "-----------------------------"
+    echo
     echo "Metric,Value"
     echo "Mean (Years),$mean_years"
     echo "Median (Years),$median_years"
@@ -535,18 +536,21 @@ calculate_survival_metrics() {
     echo "75th Percentile (Years),$percentile_75_years"
     echo
     echo "Age Metrics"
+    echo "-----------"
+    echo
     echo "Metric,Value"
     echo "Mean Age of Registered Patients,$mean_age"
     echo "Median Age of Registered Patients,$median_age"
     echo
     echo "HIV Metrics"
+    echo "-----------"
+    echo
     echo "Mean Age of HIV-Positive Patients,$mean_hiv_age"
     echo "Country with Highest HIV-Positive Patients,$max_hiv_country"
-  } > "$output_file"
+  }
 
   # Cleanup
   rm "$temp_file"
-  echo "Focused analysis saved to $output_file"
 }
 
 generate_icalendar() {
@@ -607,8 +611,6 @@ generate_icalendar() {
 
     echo "        iCalendar file generated sucessful"
 }
-
-
 
 case $1 in
   "initialize-user-store")
@@ -677,7 +679,7 @@ case $1 in
   "calculate-survival-metrics")
     calculate_survival_metrics
     ;;
-    "generate-icalendar")
+  "generate-icalendar")
     if [ $# -ne 2 ]; then
       echo "Usage: $0 generate-icalendar <UUID>"
       exit 1
