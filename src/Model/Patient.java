@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -44,6 +45,12 @@ public class Patient extends User {
         this.country = country;
         this.demiseDate = demiseDate;
         this.lifeExpectancy = lifeExpectancy;
+    }
+
+    public Patient(String uuid2, String firstName, String lastName, String string, String string2, Object object,
+            Object object2, Object object3, Object object4, Object object5, String country2, Object object6,
+            Object object7) {
+        //TODO Auto-generated constructor stub
     }
 
     // Getters and Setters
@@ -87,6 +94,36 @@ public class Patient extends User {
             e.printStackTrace();
         }
     }
+    
+
+    public String getFilePath(String fileName) {
+        // Define the base directory where files will be stored
+        String baseDir = "/path/to/storage/directory"; // Replace with your actual directory path
+
+        // Combine the base directory with the filename
+        String fullPath = Paths.get(baseDir, fileName).toString();
+
+        return fullPath;
+    }
+  
+
+    public void generateICalendar() {
+        try {
+            String scriptPath = findScript("user-manager.sh"); // Name your script accordingly
+            if (scriptPath != null) {
+                // Execute the script. Adjust parameters if necessary.
+                String output = executeScript(scriptPath, "generate-icalendar",  getUuid());
+                System.out.println(output);
+            } else {
+                System.out.println("        Script not found.");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+
+
 
     public void viewProfile() throws ParseException {
         try {
@@ -217,6 +254,7 @@ public class Patient extends User {
     }
 
     // Method to find the script path
+
     public String findScript(String scriptName) throws IOException {
         File currentDir = new File(".");
         return searchForScript(currentDir, scriptName);

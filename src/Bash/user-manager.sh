@@ -180,6 +180,8 @@ complete_registration() {
   echo "Expected demise date: $demise_date"
 }
 
+
+
 logout(){
   email=$1
 
@@ -615,16 +617,24 @@ case $1 in
     initialize_user_store
     ;;
   "get-life-expectancy")
+    if [ $# -ne 2 ]; then
+      echo "Usage: $0 get-life-expectancy <countryISO>"
+      exit 1
+    fi
     get_life_expectancy $2
     ;;
   "validate-uuid")
     if [ $# -ne 2 ]; then
-        echo "Usage: $0 validate-uuid <uuid>"
-        exit 1
+      echo "Usage: $0 validate-uuid <uuid>"
+      exit 1
     fi
     validate_uuid $2
     ;;
   "get-all-users")
+    if [ $# -ne 2 ]; then
+      echo "Usage: $0 get-all-users <status>"
+      exit 1
+    fi
     get_all_users $2
     ;;
   "initiate-registration")
@@ -635,7 +645,10 @@ case $1 in
     initiate_registration $2 $3
     ;;
   "complete-registration")
-    shift
+    if [ $# -ne 11 ]; then
+      echo "Usage: $0 complete-registration <uuid> <firstName> <lastName> <dateOfBirth> <hasHIV> <diagnosisDate> <onART> <artStartDate> <countryISO> <password>"
+      exit 1
+    fi
     complete_registration "$@"
     ;;
   "view-profile")
@@ -675,7 +688,7 @@ case $1 in
     ;;
   *)
     echo "Unknown command: $1"
-    echo "Usage: $0 <initialize-user-store|initiate-registration|complete-registration|view-profile|login|modify-patient-profile> [<args>]"
+    echo "Usage: $0 <initialize-user-store|get-life-expectancy|validate-uuid|get-all-users|initiate-registration|complete-registration|view-profile|login|logout|modify-patient-profile|calculate-survival-metrics|generate-icalendar> [<args>]"
     exit 1
     ;;
 esac

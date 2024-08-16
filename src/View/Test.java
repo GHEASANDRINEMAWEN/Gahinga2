@@ -500,7 +500,7 @@ public class Test {
                 case "4":
                     currentPatient.logout();
                     currentPatient = null;
-                    return;
+                    return;    
                 default:
                     System.out.println();
                     System.out.println("  Invalid choice, please try again.");
@@ -587,3 +587,7 @@ public class Test {
         return response.toString().trim(); // Trim to remove any trailing new lines
     }
 }
+
+
+
+
